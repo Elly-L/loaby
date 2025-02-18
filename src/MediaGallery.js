@@ -7,7 +7,7 @@ const MediaGallery = ({ user }) => {
   useEffect(() => {
     const fetchMedia = async () => {
       const { data, error } = await supabase
-        .from('media')
+        .from('media') // Ensure this matches your table name
         .select('*')
         .eq('user_id', user.id);
 
@@ -22,7 +22,7 @@ const MediaGallery = ({ user }) => {
   }, [user]);
 
   return (
-    <div>
+    <div className="gallery">
       {media.map((item) => (
         <div key={item.id}>
           <img src={`https://rqbbiezwdxquijlqxjjg.supabase.co/storage/v1/object/public/media/${item.path}`} alt={item.caption} />
