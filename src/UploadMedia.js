@@ -26,11 +26,17 @@ const UploadMedia = ({ user }) => {
       body: JSON.stringify({ file, caption, userId: user.id }),
     });
 
-    const data = await response.json();
+    // Check if the response is ok and contains valid JSON
     if (response.ok) {
+      const data = await response.json();
       console.log('Media uploaded:', data);
     } else {
-      console.error('Error uploading media:', data.error);
+      try {
+        const errorData = await response.json();
+        console.error('Error uploading media:', errorData.error);
+      } catch (jsonError) {
+        console.error('Failed to parse error response as JSON:', jsonError);
+      }
     }
   };
 
