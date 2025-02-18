@@ -9,12 +9,21 @@ const App = () => {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    const session = supabase.auth.session();
-    setUser(session?.user || null);
-
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user || null);
     });
+
+    // Check the current session
+    const checkUser = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (data?.session) {
+        setUser(data.session.user);
+      } else if (error) {
+        console.error('Error getting session:', error.message);
+      }
+    };
+
+    checkUser();
 
     return () => {
       authListener.unsubscribe();
