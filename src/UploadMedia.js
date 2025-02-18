@@ -10,11 +10,18 @@ const UploadMedia = ({ user }) => {
   };
 
   const handleUpload = async () => {
+    // Get the current session
+    const { data: session, error } = await supabase.auth.getSession();
+    if (error) {
+      console.error('Error getting session:', error.message);
+      return;
+    }
+
     const response = await fetch('/functions/v1/upload-media', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabase.auth.session().access_token}`,
+        'Authorization': `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({ file, caption, userId: user.id }),
     });
