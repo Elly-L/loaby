@@ -12,7 +12,6 @@ const UploadMedia = ({ user }) => {
 
   const handleUpload = async () => {
     if (!file) {
-      console.error("No file selected.");
       alert("Please select a file before uploading.");
       return;
     }
@@ -20,30 +19,40 @@ const UploadMedia = ({ user }) => {
     setUploading(true);
 
     try {
-      // Get the current session
-      const { data: session, error } = await supabase.auth.getSession();
-      if (error || !session?.access_token) {
-        console.error("Error getting session:", error?.message);
+      // ✅ Step 1: Check User Authentication
+      const { data: userData, error } = await supabase.auth.getUser();
+      if (error || !userData?.user) {
+        console.error("Error getting user:", error?.message);
         alert("Authentication failed. Please log in again.");
         setUploading(false);
         return;
       }
 
-      console.log("Uploading file:", file.name);
-      console.log("User ID:", user.id);
-      console.log("Token:", session.access_token);
+      console.log("Authenticated User:", userData.user);
 
-      // Prepare FormData
+      // ✅ Step 2: Get Auth Token
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) {
+        console.error("No session token found.");
+        alert("Session expired. Please log in again.");
+        setUploading(false);
+        return;
+      }
+
+      console.log("Token:", token);
+
+      // ✅ Step 3: Prepare FormData
       const formData = new FormData();
       formData.append("file", file);
       formData.append("caption", caption);
       formData.append("userId", user.id);
 
-      // Upload file to backend
+      // ✅ Step 4: Upload to Backend
       const response = await fetch("/functions/v1/upload-media", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
