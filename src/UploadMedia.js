@@ -19,59 +19,52 @@ const UploadMedia = ({ user }) => {
     setUploading(true);
 
     try {
-      // ✅ Step 1: Check User Authentication
-      const { data: userData, error } = await supabase.auth.getUser();
-      if (error || !userData?.user) {
-        console.error("Error getting user:", error?.message);
+      // ✅ Step 1: Get Authenticated User
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData?.user) {
+        console.error("Error getting user:", userError?.message);
         alert("Authentication failed. Please log in again.");
         setUploading(false);
         return;
       }
 
       console.log("Authenticated User:", userData.user);
+      const userId = userData.user.id;
 
-      // ✅ Step 2: Get Auth Token
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) {
-        console.error("No session token found.");
-        alert("Session expired. Please log in again.");
+      // ✅ Step 2: Define Storage Path
+      const filePath = `user-${userId}/${Date.now()}-${file.name}`;
+
+      // ✅ Step 3: Upload to Supabase Storage
+      const { data, error: uploadError } = await supabase.storage
+        .from("media-uploads") // Bucket name: "media-uploads"
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) {
+        console.error("Upload error:", uploadError.message);
+        alert("Failed to upload file.");
         setUploading(false);
         return;
       }
 
-      console.log("Token:", token);
+      console.log("File uploaded:", data);
 
-      // ✅ Step 3: Prepare FormData
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("caption", caption);
-      formData.append("userId", user.id);
+      // ✅ Step 4: Get Public URL
+      const { data: publicUrlData } = supabase.storage
+        .from("media-uploads")
+        .getPublicUrl(filePath);
 
-      // ✅ Step 4: Upload to Backend
-      const response = await fetch("/functions/v1/upload-media", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
+      console.log("Public URL:", publicUrlData.publicUrl);
 
-      const responseText = await response.text();
-      console.log("Server Response:", responseText, "Status:", response.status);
+      // ✅ Step 5: Save Metadata in Supabase Table
+      const { error: dbError } = await supabase
+        .from("media_uploads")
+        .insert([{ user_id: userId, file_url: publicUrlData.publicUrl, caption }]);
 
-      if (response.ok) {
-        try {
-          const data = JSON.parse(responseText);
-          console.log("Media uploaded successfully:", data);
-          alert("Upload successful!");
-        } catch (jsonError) {
-          console.warn("Upload successful, but response was not JSON:", jsonError);
-          alert("Upload successful, but response format was unexpected.");
-        }
+      if (dbError) {
+        console.error("Error saving metadata:", dbError.message);
+        alert("Upload complete, but metadata save failed.");
       } else {
-        console.error("Error uploading media:", responseText);
-        alert(`Upload failed: ${responseText}`);
+        alert("Upload successful!");
       }
     } catch (error) {
       console.error("Upload failed:", error);
