@@ -13,6 +13,7 @@ const UploadMedia = ({ user }) => {
   const handleUpload = async () => {
     if (!file) {
       console.error("No file selected.");
+      alert("Please select a file before uploading.");
       return;
     }
 
@@ -21,11 +22,16 @@ const UploadMedia = ({ user }) => {
     try {
       // Get the current session
       const { data: session, error } = await supabase.auth.getSession();
-      if (error) {
-        console.error("Error getting session:", error.message);
+      if (error || !session?.access_token) {
+        console.error("Error getting session:", error?.message);
+        alert("Authentication failed. Please log in again.");
         setUploading(false);
         return;
       }
+
+      console.log("Uploading file:", file.name);
+      console.log("User ID:", user.id);
+      console.log("Token:", session.access_token);
 
       // Prepare FormData
       const formData = new FormData();
@@ -38,25 +44,29 @@ const UploadMedia = ({ user }) => {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
-          // No need to set 'Content-Type' manually for FormData
         },
         body: formData,
       });
 
-      // Handle response
+      const responseText = await response.text();
+      console.log("Server Response:", responseText, "Status:", response.status);
+
       if (response.ok) {
         try {
-          const data = await response.json();
+          const data = JSON.parse(responseText);
           console.log("Media uploaded successfully:", data);
+          alert("Upload successful!");
         } catch (jsonError) {
           console.warn("Upload successful, but response was not JSON:", jsonError);
+          alert("Upload successful, but response format was unexpected.");
         }
       } else {
-        const errorText = await response.text();
-        console.error("Error uploading media:", errorText);
+        console.error("Error uploading media:", responseText);
+        alert(`Upload failed: ${responseText}`);
       }
     } catch (error) {
       console.error("Upload failed:", error);
+      alert("An error occurred while uploading.");
     } finally {
       setUploading(false);
     }
